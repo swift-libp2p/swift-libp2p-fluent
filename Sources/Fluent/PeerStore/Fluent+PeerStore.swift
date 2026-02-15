@@ -63,7 +63,7 @@ private struct FluentPeerStore: PeerStore {
     let database: any Database
 
     static let maxRecordsToKeep: Int = 3
-    
+
     init(id: DatabaseID?, database: any Database) {
         self.id = id
         self.database = database
@@ -93,14 +93,14 @@ private struct FluentPeerStore: PeerStore {
     func dumpAll() {
         print("FluentPeerStore::dumpAll -> Not Yet Implemented")
     }
-    
+
     private func getPeerEntry(for peer: PeerID) async throws -> PeerStoreEntry {
         guard let pid = try await PeerStoreEntry.query(on: database).filter(\.$peer == peer.b58String).first() else {
             throw Error.notFound
         }
         return pid
     }
-    
+
     private func getDatabaseID(for peer: PeerID) async throws -> PeerStoreEntry.IDValue {
         try await getPeerEntry(for: peer).requireID()
     }
@@ -161,7 +161,7 @@ extension FluentPeerStore {
                 .delete(force: true)
         }
         return promise.futureResult
-        
+
     }
 
     func getAddresses(forPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<[Multiaddr]> {
@@ -260,13 +260,13 @@ extension FluentPeerStore {
                 metadata.key = MetadataBook.Keys.Discovered.rawValue
                 metadata.value = Data("\(Date().timeIntervalSince1970)".utf8)
                 try? await newPeer.$metadata.create(metadata, on: database)
-                
+
                 // TODO: Trim database if neccessary
             }
         }
         return promise.futureResult
     }
-    
+
     /// Removes a Key (PeerID) from our PeerStore
     func remove(key: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
@@ -277,7 +277,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     /// Removes all Keys (PeerIDs) from our PeerStore
     func removeAllKeys(on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
@@ -287,13 +287,15 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func getKey(forPeer id: String, on: (any EventLoop)? = nil) -> EventLoopFuture<PeerID> {
         let promise = (on ?? database.eventLoop).makePromise(of: PeerID.self)
         promise.completeWithTask {
-            guard let peer = try await PeerStoreEntry.query(on: database)
-                .filter(\.$peer == id)
-                .first() else {
+            guard
+                let peer = try await PeerStoreEntry.query(on: database)
+                    .filter(\.$peer == id)
+                    .first()
+            else {
                 throw Error.notFound
             }
             return try peer.peerID
@@ -317,8 +319,12 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
-    func add(protocols protos: [SemVerProtocol], toPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
+
+    func add(
+        protocols protos: [SemVerProtocol],
+        toPeer peer: PeerID,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<Void> {
         guard !protos.isEmpty else { return (on ?? database.eventLoop).makeSucceededVoidFuture() }
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
@@ -332,9 +338,13 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     /// Removes a Protocol from an existing PeerID
-    func remove(protocol proto: SemVerProtocol, fromPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
+    func remove(
+        protocol proto: SemVerProtocol,
+        fromPeer peer: PeerID,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
             let pid = try await getDatabaseID(for: peer)
@@ -345,7 +355,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func remove(
         protocols: [SemVerProtocol],
         fromPeer peer: PeerID,
@@ -369,7 +379,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func removeAllProtocols(forPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
@@ -380,7 +390,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func getProtocols(forPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<[SemVerProtocol]> {
         let promise = (on ?? database.eventLoop).makePromise(of: [SemVerProtocol].self)
         promise.completeWithTask {
@@ -394,7 +404,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func getPeers(supportingProtocol proto: SemVerProtocol, on: (any EventLoop)? = nil) -> EventLoopFuture<[String]> {
         let promise = (on ?? database.eventLoop).makePromise(of: [String].self)
         promise.completeWithTask {
@@ -406,7 +416,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func getPeerIDs(supportingProtocol proto: SemVerProtocol, on: (any EventLoop)? = nil) -> EventLoopFuture<[PeerID]> {
         let promise = (on ?? database.eventLoop).makePromise(of: [PeerID].self)
         promise.completeWithTask {
@@ -441,7 +451,7 @@ extension FluentPeerStore {
             rec.record = try Data(record.marshal())
             rec.sequence = record.sequenceNumber
             try await peer.$records.create(rec, on: database)
-            
+
             if shouldTrim {
                 try await trimRecords(forPeer: record.peerID, on: on).get()
             }
@@ -461,7 +471,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     /// Returns the most recent (highest‑sequence) record for the given peer, if any.
     func getMostRecentRecord(forPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<PeerRecord?> {
         let promise = (on ?? database.eventLoop).makePromise(of: PeerRecord?.self)
@@ -479,7 +489,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func trimRecords(forPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
@@ -488,7 +498,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     private func trimRecords(forPeerID pid: PeerStoreEntry.IDValue, on: (any EventLoop)? = nil) async throws {
         let matches = try await PeerStoreEntry_Record.query(on: database)
             .filter(\.$peer.$id == pid)
@@ -497,7 +507,7 @@ extension FluentPeerStore {
         if matches.count <= FluentPeerStore.maxRecordsToKeep { return }
         try await matches.dropFirst(FluentPeerStore.maxRecordsToKeep).delete(on: database)
     }
-    
+
     func trimAllRecords() -> EventLoopFuture<Void> {
         let promise = database.eventLoop.makePromise(of: Void.self)
         promise.completeWithTask {
@@ -507,7 +517,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func removeRecords(forPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
@@ -523,24 +533,34 @@ extension FluentPeerStore {
 // MARK: Metadata Book
 
 extension FluentPeerStore {
-    func add(metaKey key: String, data: [UInt8], toPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
+    func add(
+        metaKey key: String,
+        data: [UInt8],
+        toPeer peer: PeerID,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
             let peer = try await getPeerEntry(for: peer)
-            
+
             let meta = PeerStoreEntry_Metadata()
             meta.key = key
             meta.value = Data(data)
-            
+
             try await peer.$metadata.create(meta, on: database)
         }
         return promise.futureResult
     }
-    
-    func add(metaKey key: MetadataBook.Keys, data: [UInt8], toPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
+
+    func add(
+        metaKey key: MetadataBook.Keys,
+        data: [UInt8],
+        toPeer peer: PeerID,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<Void> {
         self.add(metaKey: key.rawValue, data: data, toPeer: peer, on: on)
     }
-    
+
     func remove(metaKey key: String, fromPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
@@ -552,7 +572,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func removeAllMetadata(forPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
@@ -563,7 +583,7 @@ extension FluentPeerStore {
         }
         return promise.futureResult
     }
-    
+
     func getMetadata(forPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Metadata> {
         let promise = (on ?? database.eventLoop).makePromise(of: Metadata.self)
         promise.completeWithTask {
@@ -571,9 +591,9 @@ extension FluentPeerStore {
             let metas = try await PeerStoreEntry_Metadata.query(on: database)
                 .filter(\.$peer.$id == pid)
                 .all()
-            var metadata:[String:[UInt8]] = [:]
+            var metadata: [String: [UInt8]] = [:]
             for meta in metas {
-                metadata[meta.key] = Array<UInt8>(meta.value)
+                metadata[meta.key] = [UInt8](meta.value)
             }
             return metadata
         }
