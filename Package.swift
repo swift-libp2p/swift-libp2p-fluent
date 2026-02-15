@@ -28,7 +28,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/vapor/fluent-kit.git", .upToNextMajor(from: "1.52.2")),
-        .package(url: "https://github.com/swift-libp2p/swift-libp2p.git", branch: "main"),
+        .package(url: "https://github.com/swift-libp2p/swift-libp2p.git", .upToNextMinor(from: "0.3.5")),
     ],
     targets: [
         .target(
