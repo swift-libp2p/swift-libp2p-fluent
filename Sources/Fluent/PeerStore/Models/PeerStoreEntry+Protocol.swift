@@ -15,11 +15,11 @@
 //  Created by swift-libp2p
 //
 
-public import FluentKit
+import FluentKit
 import Foundation
-public import LibP2P
+import LibP2P
 
-public final class PeerStoreEntry_Protocol: Model, @unchecked Sendable {
+final class PeerStoreEntry_Protocol: Model, @unchecked Sendable {
     public static let schema: String = "_fluent_peerstore_protocols"
 
     struct Create: Migration {

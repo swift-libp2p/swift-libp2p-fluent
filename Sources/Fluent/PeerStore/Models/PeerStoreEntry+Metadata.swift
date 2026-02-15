@@ -15,11 +15,11 @@
 //  Created by swift-libp2p
 //
 
-public import FluentKit
-public import Foundation
+import FluentKit
+import Foundation
 import LibP2P
 
-public final class PeerStoreEntry_Metadata: Model, @unchecked Sendable {
+final class PeerStoreEntry_Metadata: Model, @unchecked Sendable {
     public static let schema: String = "_fluent_peerstore_metadata"
 
     struct Create: Migration {
