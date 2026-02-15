@@ -75,9 +75,9 @@ app.caches.use(.fluent)
 | --------- | --------- | --------- |
 | ** Supported ** | 
 | [`SQLite`](//github.com/vapor/fluent-sqlite-driver) | Fluent driver for SQLite | N/A |
-| [`PostgreSQL`](//github.com/vapor/fluent-sqlite-driver) | Fluent driver for PostgrSQL | N/A |
-| [`MySQL`](//github.com/vapor/fluent-sqlite-driver) | Fluent driver for MySQL / MariaDB | N/A |
-| [`MongoDB`](//github.com/vapor/fluent-sqlite-driver) | Fluent driver for MongoDB | N/A |
+| [`PostgreSQL`](//github.com/vapor/fluent-postgres-driver) | Fluent driver for PostgrSQL | N/A |
+| [`MySQL`](//github.com/vapor/fluent-mysql-driver) | Fluent driver for MySQL / MariaDB | N/A |
+| [`MongoDB`](//github.com/vapor/fluent-mongo-driver) | Fluent driver for MongoDB | N/A |
 | **Community Drivers** |
 | [`Github Tag`](//github.com/topics/fluent-driver) | A list of all fluent drivers | N/A |
 
