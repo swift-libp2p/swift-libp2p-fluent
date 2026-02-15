@@ -16,13 +16,14 @@
 //  Modified by swift-libp2p
 //
 
-@testable import Fluent
 import LibP2P
 import LibP2PCore
 import LibP2PCrypto
 import LibP2PTesting
 import Testing
 import XCTFluent
+
+@testable import Fluent
 
 @Suite("PeerStore Tests")
 struct PeerStoreTests {
