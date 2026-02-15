@@ -16,8 +16,8 @@
 //
 
 public import FluentKit
-import Foundation
-public import LibP2P
+public import Foundation
+import LibP2P
 
 public final class PeerStoreEntry_Metadata: Model, @unchecked Sendable {
     public static let schema: String = "_fluent_peerstore_metadata"
