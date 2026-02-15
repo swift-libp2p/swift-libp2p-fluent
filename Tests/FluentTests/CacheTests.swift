@@ -43,6 +43,8 @@ struct CacheTests {
             do {
                 let foo = try await app.cache.get("foo", as: String.self)
                 #expect(foo == nil)
+            } catch {
+                Issue.record(error)
             }
 
             // simulate cache hit
@@ -50,6 +52,8 @@ struct CacheTests {
             do {
                 let foo = try await app.cache.get("foo", as: String.self)
                 #expect(foo == "bar")
+            } catch {
+                Issue.record(error)
             }
         }
     }
