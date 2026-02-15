@@ -116,7 +116,8 @@ extension Application {
     }
 }
 
-private struct PostRepositoryFactory: @unchecked Sendable {  // not actually Sendable but the compiler doesn't need to know that
+// not actually Sendable but the compiler doesn't need to know that
+private struct PostRepositoryFactory: @unchecked Sendable {
     var makePosts: (@Sendable (Request) -> any PostRepository)?
 
     mutating func use(_ makePosts: @escaping @Sendable (Request) -> any PostRepository) {
