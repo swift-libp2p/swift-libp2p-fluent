@@ -16,7 +16,7 @@
 //  Modified by swift-libp2p
 //
 
-import Fluent
+@testable import Fluent
 import LibP2P
 import LibP2PCore
 import LibP2PCrypto
