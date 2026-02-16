@@ -26,10 +26,14 @@ final class PeerStoreEntry_Multiaddr: Model, @unchecked Sendable {
         func prepare(on database: any Database) -> EventLoopFuture<Void> {
             database.schema("_fluent_peerstore_multiaddr")
                 .id()
-                .field("peer_id", .uuid, .required, .references("_fluent_peerstore", "id"))
+                .field(
+                    "peer_id",
+                    .uuid,
+                    .required,
+                    .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
+                )
                 .field("address", .string, .required)
                 .unique(on: "peer_id", "address")
-                .foreignKey("peer_id", references: "_fluent_peerstore", "id", onDelete: .cascade)
                 .create()
         }
 

@@ -26,10 +26,14 @@ final class PeerStoreEntry_Protocol: Model, @unchecked Sendable {
         func prepare(on database: any Database) -> EventLoopFuture<Void> {
             database.schema("_fluent_peerstore_protocols")
                 .id()
-                .field("peer_id", .uuid, .required, .references("_fluent_peerstore", "id"))
+                .field(
+                    "peer_id",
+                    .uuid,
+                    .required,
+                    .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
+                )
                 .field("protocol", .string, .required)
                 .unique(on: "peer_id", "protocol")
-                .foreignKey("peer_id", references: "_fluent_peerstore", "id", onDelete: .cascade)
                 .create()
         }
 

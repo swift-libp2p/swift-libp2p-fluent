@@ -26,11 +26,15 @@ final class PeerStoreEntry_Record: Model, @unchecked Sendable {
         func prepare(on database: any Database) -> EventLoopFuture<Void> {
             database.schema("_fluent_peerstore_records")
                 .id()
-                .field("peer_id", .uuid, .required, .references("_fluent_peerstore", "id"))
-                .field("sequence", .uint64, .required)
+                .field(
+                    "peer_id",
+                    .uuid,
+                    .required,
+                    .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
+                )
+                .field("sequence", .int64, .required)
                 .field("record", .data, .required)
                 .unique(on: "peer_id", "sequence")
-                .foreignKey("peer_id", references: "_fluent_peerstore", "id", onDelete: .cascade)
                 .create()
         }
 
@@ -50,7 +54,7 @@ final class PeerStoreEntry_Record: Model, @unchecked Sendable {
     public var peer: PeerStoreEntry
 
     @Field(key: "sequence")
-    public var sequence: UInt64
+    public var sequence: Int64
 
     @Field(key: "record")
     public var record: Data
@@ -59,7 +63,7 @@ final class PeerStoreEntry_Record: Model, @unchecked Sendable {
 
     public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, record: PeerRecord) throws {
         self.$peer.id = peerID
-        self.sequence = record.sequenceNumber
+        self.sequence = Int64(bitPattern: record.sequenceNumber)
         self.record = try Data(record.marshal())
     }
 }
