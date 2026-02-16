@@ -448,9 +448,8 @@ extension FluentPeerStore {
                 peer = newPeer
             }
             let rec = PeerStoreEntry_Record()
-            guard record.sequenceNumber < Int64.max else { throw Error.notFound }
             rec.record = try Data(record.marshal())
-            rec.sequence = Int64(record.sequenceNumber)
+            rec.sequence = Int64(bitPattern: record.sequenceNumber)
             try await peer.$records.create(rec, on: database)
 
             if shouldTrim {

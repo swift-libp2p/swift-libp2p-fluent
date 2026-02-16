@@ -62,9 +62,8 @@ final class PeerStoreEntry_Record: Model, @unchecked Sendable {
     public init() {}
 
     public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, record: PeerRecord) throws {
-        precondition(record.sequenceNumber <= Int64.max)
         self.$peer.id = peerID
-        self.sequence = Int64(record.sequenceNumber)
+        self.sequence = Int64(bitPattern: record.sequenceNumber)
         self.record = try Data(record.marshal())
     }
 }
