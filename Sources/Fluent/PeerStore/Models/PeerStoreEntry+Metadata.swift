@@ -26,11 +26,15 @@ final class PeerStoreEntry_Metadata: Model, @unchecked Sendable {
         func prepare(on database: any Database) -> EventLoopFuture<Void> {
             database.schema("_fluent_peerstore_metadata")
                 .id()
-                .field("peer_id", .uuid, .required, .references("_fluent_peerstore", "id"))
+                .field(
+                    "peer_id",
+                    .uuid,
+                    .required,
+                    .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
+                )
                 .field("key", .string, .required)
                 .field("value", .data, .required)
                 .unique(on: "peer_id", "key")
-                .foreignKey("peer_id", references: "_fluent_peerstore", "id", onDelete: .cascade)
                 .create()
         }
 
