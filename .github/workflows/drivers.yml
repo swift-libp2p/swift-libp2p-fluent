@@ -40,6 +40,10 @@ jobs:
           key: ${{ runner.os }}-spm-${{ hashFiles('**/swift-libp2p/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
+      # Log Contents of .build
+      - name: Log Cached Contents
+        working-directory: ./swift-libp2p
+        run: ls -a & ls -a .build
       # Run Generate to gen our test
       - name: Create Fluent Test Repository
         working-directory: ./swift-libp2p
