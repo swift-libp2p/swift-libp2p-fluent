@@ -34,18 +34,21 @@ jobs:
         run: swift --version
       # Use Cache to restore swift-libp2p build
       - name: Cache swift-libp2p build
+        id: cache-swift-build
         uses: actions/cache@v5
         with:
           path: ./swift-libp2p/.build
           key: ${{ runner.os }}-spm-${{ hashFiles('**/swift-libp2p/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
-      # Log Contents of .build
-      - name: Log Cached Contents
-        working-directory: ./swift-libp2p
-        run: ls -a & ls -a .build
+      # Run Generate to gen our test (Cached)
+      - name: Create Fluent Test Repository (Cached)
+        if: steps.cache-swift-build.outputs.cache-hit == 'true'
+        working-directory: ./swift-libp2p/.build/debug
+        run: Generate new "fluent-test-sqlite" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o sqlite
       # Run Generate to gen our test
       - name: Create Fluent Test Repository
+        if: steps.cache-swift-build.outputs.cache-hit != 'true'
         working-directory: ./swift-libp2p
         run: swift run Generate new "fluent-test-sqlite" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o sqlite
       # Build in debug mode
