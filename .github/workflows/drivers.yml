@@ -1,0 +1,48 @@
+name: Build & Test Drivers
+
+on:
+  workflow_dispatch:
+
+## Cancel previously triggered workflow runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-build-test-driver
+  cancel-in-progress: true
+
+jobs:
+  test-sqlite:
+    name: Test-SQLite
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        # Test on the latest 3 versions of Swift
+        swift-version: ["6.1"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Checkout this repo
+      - uses: actions/checkout@v5
+      # Checkout swift-libp2p
+      - uses: actions/checkout@v5
+        with:
+          repository: swift-libp2p/swift-libp2p
+          path: swift-libp2p
+          ref: 'gen-cmd'
+      # Set up Swift
+      - uses: SwiftyLab/setup-swift@latest
+        with:
+          swift-version: ${{ matrix.swift-version }}
+      # Log the Swift Version
+      - name: Log Swift Version
+        run: swift --version
+      # Run Generate to gen our test
+      - name: Create Fluent Test Repository
+        working-directory: ./swift-libp2p
+        run: swift run Generate new "fluent-test-sqlite" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o sqlite
+      # Build in debug mode
+      - name: Build
+        working-directory: ./fluent-test-sqlite
+        run: swift build
+      # Test in debug mode with verbosity enabled
+      - name: Test
+        working-directory: ./fluent-test-sqlite
+        run: swift test
