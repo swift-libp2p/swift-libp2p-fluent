@@ -38,7 +38,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ./swift-libp2p/.build
-          key: ${{ runner.os }}-spm-${{ hashFiles('**/swift-libp2p/Package.resolved') }}
+          key: ${{ runner.os }}-spm-${{ hashFiles('./swift-libp2p/Sources/Generate/**/*.swift') }}
           restore-keys: |
             ${{ runner.os }}-spm-
       # Run Generate to gen our test (Cached)
