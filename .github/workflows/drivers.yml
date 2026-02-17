@@ -44,8 +44,8 @@ jobs:
       # Run Generate to gen our test (Cached)
       - name: Create Fluent Test Repository (Cached)
         if: steps.cache-swift-build.outputs.cache-hit == 'true'
-        working-directory: ./swift-libp2p/.build/debug
-        run: ./Generate new "fluent-test-sqlite" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o sqlite
+        working-directory: ./swift-libp2p
+        run: .build/debug/Generate new "fluent-test-sqlite" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o sqlite
       # Run Generate to gen our test
       - name: Create Fluent Test Repository
         if: steps.cache-swift-build.outputs.cache-hit != 'true'
