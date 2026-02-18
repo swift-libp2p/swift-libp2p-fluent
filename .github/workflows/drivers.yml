@@ -197,6 +197,8 @@ jobs:
         env:
           MYSQL_DATABASE: libp2p
           MYSQL_ROOT_PASSWORD: libp2p
+          MYSQL_USER: libp2p
+          MYSQL_PASSWORD: libp2p
         # Set health checks to wait until postgres has started
         options: >-
           --health-cmd="mysqladmin ping"
