@@ -291,7 +291,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
       # Install MongoDB
       - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@latest
+        uses: supercharge/mongodb-github-action@1.12.1
         with:
           mongodb-version: ${{ matrix.mongodb-version }}
           mongodb-username: libp2p
