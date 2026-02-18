@@ -249,7 +249,7 @@ jobs:
         run: swift test
         env:
           # The hostname used to communicate with the PostgreSQL service container
-          DB_HOSTNAME: 127.0.0.1
+          DB_HOSTNAME: localhost
           DB_USERNAME: libp2p
           DB_PASSWORD: libp2p
           DB_DATABASE: libp2p
