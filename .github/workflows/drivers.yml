@@ -41,7 +41,12 @@ jobs:
           key: ${{ runner.os }}-spm-${{ hashFiles('./swift-libp2p/Sources/Generate/**/*.swift') }}
           restore-keys: |
             ${{ runner.os }}-spm-
-    
+      # Run Generate to gen our test
+      - name: Build swift-libp2p
+        if: steps.cache-swift-build.outputs.cache-hit != 'true'
+        working-directory: ./swift-libp2p
+        run: swift build
+        
   # test-sqlite:
   #   needs: cache-swift-libp2p
   #   name: Test-SQLite
