@@ -33,7 +33,7 @@ final class PeerStoreEntry_Metadata: Model, @unchecked Sendable {
                     .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
                 )
                 .field("key", .string, .required)
-                .field("value", .data, .required)
+                .field("value", .string, .required)
                 .unique(on: "peer_id", "key")
                 .create()
         }
@@ -57,11 +57,11 @@ final class PeerStoreEntry_Metadata: Model, @unchecked Sendable {
     public var key: String
 
     @Field(key: "value")
-    public var value: Data
+    public var value: String
 
     public init() {}
 
-    public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, key: String, value: Data) throws {
+    public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, key: String, value: String) throws {
         self.$peer.id = peerID
         self.key = key
         self.value = value
