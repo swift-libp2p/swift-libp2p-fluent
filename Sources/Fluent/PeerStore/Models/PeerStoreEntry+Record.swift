@@ -33,7 +33,7 @@ final class PeerStoreEntry_Record: Model, @unchecked Sendable {
                     .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
                 )
                 .field("sequence", .int64, .required)
-                .field("record", .data, .required)
+                .field("record", .string, .required)
                 .unique(on: "peer_id", "sequence")
                 .create()
         }
@@ -57,13 +57,13 @@ final class PeerStoreEntry_Record: Model, @unchecked Sendable {
     public var sequence: Int64
 
     @Field(key: "record")
-    public var record: Data
+    public var record: String
 
     public init() {}
 
     public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, record: PeerRecord) throws {
         self.$peer.id = peerID
         self.sequence = Int64(bitPattern: record.sequenceNumber)
-        self.record = try Data(record.marshal())
+        self.record = try record.marshal().asString(base: .base64Pad, withMultibasePrefix: false)
     }
 }

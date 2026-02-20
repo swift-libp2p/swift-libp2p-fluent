@@ -88,26 +88,31 @@ final class PeerStoreEntry: Model, @unchecked Sendable {
     }
 
     public func asComprehensivePeer(on db: any Database) async throws -> ComprehensivePeer {
-        async let mas = try? self.$multiaddrs.get(on: db)
-        async let protos = try? self.$protocols.get(on: db)
-        async let recs = try? self.$records.get(on: db)
-        async let metas = try? self.$metadata.get(on: db)
+        async let getMAs = try? self.$multiaddrs.get(on: db)
+        async let getProtos = try? self.$protocols.get(on: db)
+        async let getRecs = try? self.$records.get(on: db)
+        async let getMetas = try? self.$metadata.get(on: db)
 
-        let results = await (mas, protos, recs, metas)
+        let (mas, protos, recs, metas) = await (getMAs, getProtos, getRecs, getMetas)
 
         // Prep our Multiaddrs
-        let addresses = Set((results.0 ?? []).compactMap { try? Multiaddr($0.address) })
+        let addresses = Set((mas ?? []).compactMap { try? Multiaddr($0.address) })
 
         // Prep our Protocols
-        let protocols = Set((results.1 ?? []).compactMap { SemVerProtocol($0.protocol) })
+        let protocols = Set((protos ?? []).compactMap { SemVerProtocol($0.protocol) })
 
         // Prep our Records
-        let records = Set((results.2 ?? []).compactMap { try? PeerRecord(marshaledData: Data($0.record)) })
+        let records = Set(
+            (recs ?? []).compactMap { elem -> PeerRecord? in
+                guard let asData = Data(base64Encoded: elem.record) else { return nil }
+                return try? PeerRecord(marshaledData: asData)
+            }
+        )
 
         // Prep our Metadata
         var metadataDictionary: [String: [UInt8]] = [:]
-        for meta in (results.3 ?? []) {
-            metadataDictionary[meta.key] = [UInt8](meta.value)
+        for meta in (metas ?? []) {
+            metadataDictionary[meta.key] = [UInt8](Data(meta.value.utf8))
         }
 
         return try .init(
