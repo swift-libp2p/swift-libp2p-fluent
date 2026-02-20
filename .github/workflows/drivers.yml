@@ -256,78 +256,78 @@ jobs:
           DB_PASSWORD: libp2p
           DB_DATABASE: libp2p
 
-  # test-mongo:
-  #   needs: cache-swift-libp2p
-  #   name: Test-MongoDB
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [ubuntu-latest]
-  #       # Test on the latest 3 versions of Swift
-  #       swift-version: ["6.1", "6.2"]
-  #       # The versions of node to test against
-  #       node-version: [24.x]
-  #       # The versions of mongodb to test against
-  #       mongodb-version: ["8.0"]
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     # Checkout swift-libp2p
-  #     - uses: actions/checkout@v5
-  #       with:
-  #         repository: swift-libp2p/swift-libp2p
-  #         path: swift-libp2p
-  #         ref: 'gen-cmd'
-  #     # Set up Swift
-  #     - uses: SwiftyLab/setup-swift@latest
-  #       with:
-  #         swift-version: ${{ matrix.swift-version }}
-  #     # Log the Swift Version
-  #     - name: Log Swift Version
-  #       run: swift --version
-  #     # Install Node JS
-  #     - name: Use Node.js ${{ matrix.node-version }}
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: ${{ matrix.node-version }}
-  #     # Install MongoDB
-  #     - name: Start MongoDB
-  #       uses: supercharge/mongodb-github-action@1.12.1
-  #       with:
-  #         mongodb-version: ${{ matrix.mongodb-version }}
-  #         mongodb-username: libp2p
-  #         mongodb-password: libp2p
-  #         mongodb-db: libp2p
-  #         mongodb-port: 27017
-  #     # Use Cache to restore swift-libp2p build
-  #     - name: Cache swift-libp2p build
-  #       id: cache-swift-build
-  #       uses: actions/cache@v5
-  #       with:
-  #         path: ./swift-libp2p/.build
-  #         key: ${{ runner.os }}-${{ matrix.swift-version }}-spm-${{ hashFiles('./swift-libp2p/Sources/Generate/**/*.swift') }}
-  #         restore-keys: |
-  #           ${{ runner.os }}-${{ matrix.swift-version }}-spm-
-  #     # Run Generate to gen our test (Cached)
-  #     - name: Create Fluent Test Repository (Cached)
-  #       if: steps.cache-swift-build.outputs.cache-hit == 'true'
-  #       working-directory: ./swift-libp2p
-  #       run: .build/debug/Generate new "fluent-test-mongo" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o mongo
-  #     # Run Generate to gen our test
-  #     - name: Create Fluent Test Repository
-  #       if: steps.cache-swift-build.outputs.cache-hit != 'true'
-  #       working-directory: ./swift-libp2p
-  #       run: swift run Generate new "fluent-test-mongo" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o mongo
-  #     # Build in debug mode
-  #     - name: Build
-  #       working-directory: ./fluent-test-mongo
-  #       run: swift build
-  #     # Test in debug mode with verbosity enabled
-  #     - name: Test
-  #       working-directory: ./fluent-test-mongo
-  #       run: swift test
-  #       env:
-  #         # The info used to communicate with the MongoDB instance
-  #         DB_HOSTNAME: localhost
-  #         DB_USERNAME: libp2p
-  #         DB_PASSWORD: libp2p
-  #         DB_DATABASE: libp2p
+  test-mongo:
+    needs: cache-swift-libp2p
+    name: Test-MongoDB
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        # Test on the latest 3 versions of Swift
+        swift-version: ["6.1", "6.2"]
+        # The versions of node to test against
+        node-version: [24.x]
+        # The versions of mongodb to test against
+        mongodb-version: ["8.0"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Checkout swift-libp2p
+      - uses: actions/checkout@v5
+        with:
+          repository: swift-libp2p/swift-libp2p
+          path: swift-libp2p
+          ref: 'gen-cmd'
+      # Set up Swift
+      - uses: SwiftyLab/setup-swift@latest
+        with:
+          swift-version: ${{ matrix.swift-version }}
+      # Log the Swift Version
+      - name: Log Swift Version
+        run: swift --version
+      # Install Node JS
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      # Install MongoDB
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.12.1
+        with:
+          mongodb-version: ${{ matrix.mongodb-version }}
+          mongodb-username: libp2p
+          mongodb-password: libp2p
+          mongodb-db: libp2p
+          mongodb-port: 27017
+      # Use Cache to restore swift-libp2p build
+      - name: Cache swift-libp2p build
+        id: cache-swift-build
+        uses: actions/cache@v5
+        with:
+          path: ./swift-libp2p/.build
+          key: ${{ runner.os }}-${{ matrix.swift-version }}-spm-${{ hashFiles('./swift-libp2p/Sources/Generate/**/*.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.swift-version }}-spm-
+      # Run Generate to gen our test (Cached)
+      - name: Create Fluent Test Repository (Cached)
+        if: steps.cache-swift-build.outputs.cache-hit == 'true'
+        working-directory: ./swift-libp2p
+        run: .build/debug/Generate new "fluent-test-mongo" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o mongo
+      # Run Generate to gen our test
+      - name: Create Fluent Test Repository
+        if: steps.cache-swift-build.outputs.cache-hit != 'true'
+        working-directory: ./swift-libp2p
+        run: swift run Generate new "fluent-test-mongo" --template "test-fluent" --mode listener -t tcp -s noise -m yamux -o mongo
+      # Build in debug mode
+      - name: Build
+        working-directory: ./fluent-test-mongo
+        run: swift build
+      # Test in debug mode with verbosity enabled
+      - name: Test
+        working-directory: ./fluent-test-mongo
+        run: swift test
+        env:
+          # The info used to communicate with the MongoDB instance
+          DB_HOSTNAME: localhost
+          DB_USERNAME: libp2p
+          DB_PASSWORD: libp2p
+          DB_DATABASE: libp2p
