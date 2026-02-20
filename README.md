@@ -77,7 +77,7 @@ app.caches.use(.fluent)
 | [`SQLite`](//github.com/vapor/fluent-sqlite-driver) | Fluent driver for SQLite | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
 | [`PostgreSQL`](//github.com/vapor/fluent-postgres-driver) | Fluent driver for PostgrSQL | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
 | [`MySQL`](//github.com/vapor/fluent-mysql-driver) | Fluent driver for MySQL / MariaDB | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
-| [`MongoDB`](//github.com/vapor/fluent-mongo-driver) | Fluent driver for MongoDB | N/A |
+| [`MongoDB`](//github.com/vapor/fluent-mongo-driver) | Fluent driver for MongoDB | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
 | **Community Drivers** |
 | [`Github Tag`](//github.com/topics/fluent-driver) | A list of all fluent drivers | N/A |
 
