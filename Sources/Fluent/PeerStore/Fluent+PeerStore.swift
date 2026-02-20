@@ -258,7 +258,7 @@ extension FluentPeerStore {
                 try await newPeer.create(on: database)
                 let metadata = PeerStoreEntry_Metadata()
                 metadata.key = MetadataBook.Keys.Discovered.rawValue
-                metadata.value = Data("\(Date().timeIntervalSince1970)".utf8)
+                metadata.value = "\(Date().timeIntervalSince1970)"
                 try? await newPeer.$metadata.create(metadata, on: database)
 
                 // TODO: Trim database if neccessary
@@ -448,7 +448,7 @@ extension FluentPeerStore {
                 peer = newPeer
             }
             let rec = PeerStoreEntry_Record()
-            rec.record = try Data(record.marshal())
+            rec.record = try record.marshal().asString(base: .base64Pad, withMultibasePrefix: false)
             rec.sequence = Int64(bitPattern: record.sequenceNumber)
             try await peer.$records.create(rec, on: database)
 
@@ -467,7 +467,10 @@ extension FluentPeerStore {
                 .filter(\.$peer.$id == pid)
                 .all()
 
-            return try matches.map { try PeerRecord(marshaledData: Data($0.record)) }
+            return try matches.compactMap {
+                guard let asData = Data(base64Encoded: $0.record) else { return nil }
+                return try PeerRecord(marshaledData: asData)
+            }
         }
         return promise.futureResult
     }
@@ -482,7 +485,8 @@ extension FluentPeerStore {
                 .sort(\.$sequence, .descending)
                 .first()
             {
-                return try PeerRecord(marshaledData: Data(recordRow.record))
+                guard let asData = Data(base64Encoded: recordRow.record) else { return nil }
+                return try PeerRecord(marshaledData: asData)
             } else {
                 return nil
             }
@@ -545,7 +549,7 @@ extension FluentPeerStore {
 
             let meta = PeerStoreEntry_Metadata()
             meta.key = key
-            meta.value = Data(data)
+            meta.value = String(data: Data(data), encoding: .utf8) ?? ""
 
             try await peer.$metadata.create(meta, on: database)
         }
@@ -593,7 +597,7 @@ extension FluentPeerStore {
                 .all()
             var metadata: [String: [UInt8]] = [:]
             for meta in metas {
-                metadata[meta.key] = [UInt8](meta.value)
+                metadata[meta.key] = [UInt8](Data(meta.value.utf8))
             }
             return metadata
         }
