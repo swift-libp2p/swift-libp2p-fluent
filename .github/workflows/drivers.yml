@@ -46,7 +46,7 @@ jobs:
         if: steps.cache-swift-build.outputs.cache-hit != 'true'
         working-directory: ./swift-libp2p
         run: swift build
-        
+
   test-sqlite:
     needs: cache-swift-libp2p
     name: Test-SQLite
@@ -176,7 +176,7 @@ jobs:
           DB_USERNAME: libp2p
           DB_PASSWORD: libp2p
           DB_DATABASE: libp2p
-  
+
   test-mysql:
     needs: cache-swift-libp2p
     name: Test-MySQL
