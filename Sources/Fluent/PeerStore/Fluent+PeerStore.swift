@@ -271,6 +271,22 @@ extension FluentPeerStore {
     func remove(key: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
+            guard let pid = try? await getDatabaseID(for: key) else { return }
+            // If we're running mongodb, we have to manually delete our child references
+            if database.isMongoDB {
+                try? await PeerStoreEntry_Record.query(on: database)
+                    .filter(\.$peer.$id == pid)
+                    .delete(force: true)
+                try? await PeerStoreEntry_Multiaddr.query(on: database)
+                    .filter(\.$peer.$id == pid)
+                    .delete(force: true)
+                try? await PeerStoreEntry_Protocol.query(on: database)
+                    .filter(\.$peer.$id == pid)
+                    .delete(force: true)
+                try? await PeerStoreEntry_Metadata.query(on: database)
+                    .filter(\.$peer.$id == pid)
+                    .delete(force: true)
+            }
             try await PeerStoreEntry.query(on: database)
                 .filter(\.$peer == key.b58String)
                 .delete(force: true)
@@ -284,6 +300,17 @@ extension FluentPeerStore {
         promise.completeWithTask {
             try await PeerStoreEntry.query(on: database)
                 .delete(force: true)
+            // If we're running mongodb, we have to manually delete our child references
+            if database.isMongoDB {
+                try? await PeerStoreEntry_Record.query(on: database)
+                    .delete(force: true)
+                try? await PeerStoreEntry_Multiaddr.query(on: database)
+                    .delete(force: true)
+                try? await PeerStoreEntry_Protocol.query(on: database)
+                    .delete(force: true)
+                try? await PeerStoreEntry_Metadata.query(on: database)
+                    .delete(force: true)
+            }
         }
         return promise.futureResult
     }
@@ -433,7 +460,7 @@ extension FluentPeerStore {
 // MARK: Record Book
 
 extension FluentPeerStore {
-    func add(record: PeerRecord, on: (any EventLoop)?) -> EventLoopFuture<Void> {
+    func add(record: PeerRecord, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
         let promise = (on ?? database.eventLoop).makePromise(of: Void.self)
         promise.completeWithTask {
             var peer: PeerStoreEntry! = nil
@@ -602,5 +629,11 @@ extension FluentPeerStore {
             return metadata
         }
         return promise.futureResult
+    }
+}
+
+extension Database {
+    fileprivate var isMongoDB: Bool {
+        "\(self.configuration)".hasPrefix("FluentMongoConfiguration")
     }
 }
