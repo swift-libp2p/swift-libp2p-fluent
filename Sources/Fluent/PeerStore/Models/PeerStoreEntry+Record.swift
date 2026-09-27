@@ -22,31 +22,6 @@ import LibP2P
 final class PeerStoreEntry_Record: Model, @unchecked Sendable {
     public static let schema: String = "_fluent_peerstore_records"
 
-    struct Create: Migration {
-        func prepare(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore_records")
-                .id()
-                .field(
-                    "peer_id",
-                    .uuid,
-                    .required,
-                    .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
-                )
-                .field("sequence", .int64, .required)
-                .field("record", .string, .required)
-                .unique(on: "peer_id", "sequence")
-                .create()
-        }
-
-        func revert(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore_records").delete()
-        }
-    }
-
-    public static var migration: any Migration {
-        Create()
-    }
-
     @ID(key: .id)
     public var id: UUID?
 
@@ -56,14 +31,27 @@ final class PeerStoreEntry_Record: Model, @unchecked Sendable {
     @Field(key: "sequence")
     public var sequence: Int64
 
+    /// The marshalled, signed `PeerRecord` envelope.
     @Field(key: "record")
-    public var record: String
+    public var record: Data
 
     public init() {}
 
     public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, record: PeerRecord) throws {
+        self.id = id
         self.$peer.id = peerID
         self.sequence = Int64(bitPattern: record.sequenceNumber)
-        self.record = try record.marshal().asString(base: .base64Pad, withMultibasePrefix: false)
+        self.record = Data(try record.marshal())
+    }
+
+    /// The record's sequence number. It's stored as the `Int64` bit pattern of the `UInt64` value, so
+    /// sort on this rather than the raw column.
+    var sequenceNumber: UInt64 {
+        UInt64(bitPattern: self.sequence)
+    }
+
+    /// Decodes the stored, signed `PeerRecord`.
+    func peerRecord() throws -> PeerRecord {
+        try PeerRecord(marshaledData: self.record)
     }
 }
