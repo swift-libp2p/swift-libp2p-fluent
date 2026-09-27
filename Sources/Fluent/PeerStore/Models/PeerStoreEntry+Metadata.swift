@@ -22,31 +22,6 @@ import LibP2P
 final class PeerStoreEntry_Metadata: Model, @unchecked Sendable {
     public static let schema: String = "_fluent_peerstore_metadata"
 
-    struct Create: Migration {
-        func prepare(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore_metadata")
-                .id()
-                .field(
-                    "peer_id",
-                    .uuid,
-                    .required,
-                    .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
-                )
-                .field("key", .string, .required)
-                .field("value", .string, .required)
-                .unique(on: "peer_id", "key")
-                .create()
-        }
-
-        func revert(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore_metadata").delete()
-        }
-    }
-
-    public static var migration: any Migration {
-        Create()
-    }
-
     @ID(key: .id)
     public var id: UUID?
 
@@ -56,14 +31,16 @@ final class PeerStoreEntry_Metadata: Model, @unchecked Sendable {
     @Field(key: "key")
     public var key: String
 
+    /// The exact bytes of the metadata value.
     @Field(key: "value")
-    public var value: String
+    public var value: Data
 
     public init() {}
 
-    public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, key: String, value: String) throws {
+    public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, key: String, value: [UInt8]) {
+        self.id = id
         self.$peer.id = peerID
         self.key = key
-        self.value = value
+        self.value = Data(value)
     }
 }
