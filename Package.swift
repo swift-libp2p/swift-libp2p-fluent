@@ -1,9 +1,9 @@
-// swift-tools-version:6.0
+// swift-tools-version:6.1
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -18,17 +18,15 @@ import PackageDescription
 let package = Package(
     name: "swift-libp2p-fluent",
     platforms: [
-        .macOS(.v10_15),
-        .iOS(.v13),
-        .watchOS(.v6),
-        .tvOS(.v13),
+        .macOS(.v13),
+        .iOS(.v16)
     ],
     products: [
         .library(name: "Fluent", targets: ["Fluent"])
     ],
     dependencies: [
         .package(url: "https://github.com/vapor/fluent-kit.git", .upToNextMajor(from: "1.52.2")),
-        .package(url: "https://github.com/swift-libp2p/swift-libp2p.git", .upToNextMinor(from: "0.3.5")),
+        .package(url: "https://github.com/swift-libp2p/swift-libp2p.git", .upToNextMinor(from: "0.4.0")),
     ],
     targets: [
         .target(
