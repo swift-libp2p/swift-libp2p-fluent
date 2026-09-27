@@ -19,9 +19,9 @@
 import Fluent
 import LibP2P
 import LibP2PTesting
+import NIOConcurrencyHelpers
 import Testing
 import XCTFluent
-import NIOConcurrencyHelpers
 
 @Suite("Cache Tests")
 struct CacheTests {
@@ -65,6 +65,8 @@ struct CacheTests {
             let canary = Canary()
             // Setup test db.
             let test = CallbackTestDatabase { query in
+                // `set` now queries for an existing key before creating, return an empty array, simulating no existing key.
+                guard case .create = query.action else { return [] }
                 switch query.input[0] {
                 case .dictionary(let dict):
                     switch dict["value"] {
