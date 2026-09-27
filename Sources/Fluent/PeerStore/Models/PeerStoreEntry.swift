@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -76,7 +76,7 @@ final class PeerStoreEntry: Model, @unchecked Sendable {
             if let keypair = self.keypair {
                 return try PeerID(marshaledPublicKey: keypair)
             } else {
-                return try PeerID(fromBytesID: .init(decoding: peer, as: .base58btc))
+                return try PeerID(fromBytesID: BaseEncoding.decode(peer, as: .base58btc))
             }
         }
     }
