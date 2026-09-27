@@ -109,6 +109,30 @@ public final class CacheEntry: Model, @unchecked Sendable {
         }
     }
 
+    /// Adds the `expires_at` column used to honour `set(_:to:expiresIn:)`.
+    struct AddExpiration: Migration {
+        func prepare(on database: any Database) -> EventLoopFuture<Void> {
+            database.schema("_fluent_cache")
+                .field("expires_at", .datetime)
+                .update()
+        }
+
+        func revert(on database: any Database) -> EventLoopFuture<Void> {
+            database.schema("_fluent_cache")
+                .deleteField("expires_at")
+                .update()
+        }
+    }
+
+    /// Every migration the Fluent cache needs, in order.
+    ///
+    ///     app.migrations.add(CacheEntry.migrations)
+    ///
+    public static var migrations: [any Migration] {
+        [Create(), AddExpiration()]
+    }
+
+    @available(*, deprecated, message: "Use `CacheEntry.migrations`, which also adds the `expires_at` column.")
     public static var migration: any Migration {
         Create()
     }
@@ -122,10 +146,16 @@ public final class CacheEntry: Model, @unchecked Sendable {
     @Field(key: "value")
     public var value: String
 
+    /// When this entry expires, or `nil` if it never does.
+    @OptionalField(key: "expires_at")
+    public var expiresAt: Date?
+
     public init() {}
 
-    public init(id: UUID? = nil, key: String, value: String) {
+    public init(id: UUID? = nil, key: String, value: String, expiresAt: Date? = nil) {
+        self.id = id
         self.key = key
         self.value = value
+        self.expiresAt = expiresAt
     }
 }
