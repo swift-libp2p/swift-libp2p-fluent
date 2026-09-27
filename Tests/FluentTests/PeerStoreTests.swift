@@ -39,14 +39,17 @@ struct PeerStoreTests {
         app.peerstore.prepareMigrations()
     }
 
-    @Test func peerStoreMigrationName() {
-        #expect(PeerStoreEntry.migration.name == "Fluent.PeerStoreEntry.Create")
+    @Test func peerStoreMigrationNames() {
+        // The name must differ from every pre-0.1.0 migration, so databases that ran those still run it.
+        #expect(FluentPeerStore.migrations.map(\.name) == ["Fluent.FluentPeerStore.CreateSchema"])
     }
 
     @Test func testPeerStoreStoreAndFetchPeerID() async throws {
         try await withApp(configure: configure) { app in
             let peer = try PeerID(.Ed25519)
+            // `all()` loads the entries, then eager loads addresses, protocols, records and metadata.
             test.append([TestOutput(PeerStoreEntry(id: UUID(), peerID: peer))])
+            for _ in 0..<4 { test.append([]) }
 
             do {
                 let peers1 = try await app.peers.all().get()
