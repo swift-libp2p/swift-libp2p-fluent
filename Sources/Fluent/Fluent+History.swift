@@ -34,10 +34,8 @@ struct FluentHistory: Sendable {
 extension Request {
     /// Request-scoped Fluent state.
     ///
-    /// - Note: Unlike an HTTP request, a libp2p `Request` is created for every stream event
-    ///   (`.ready`, each `.data`, `.closed`, `.error`). Request-scoped state, such as query
-    ///   history or a page size limit, only applies to the event it was set on. It doesn't carry
-    ///   over to later events on the same stream.
+    /// - Todo: Make sure this scope lasts for the entire streams lifecycle (not just per Request event)
+    ///   This depends on how swift-libp2p constructs Requests for its Responders.
     public struct Fluent: Sendable {
         let request: Request
 
