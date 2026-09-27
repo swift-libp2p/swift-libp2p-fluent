@@ -31,16 +31,21 @@ extension Request {
     }
 
     public func db(_ id: DatabaseID?, logger: Logger) -> any Database {
-        self.application.databases.database(
-            id,
-            logger: logger,
-            on: self.eventLoop,
-            history: self.fluent.history.historyEnabled ? self.fluent.history.history : nil,
-            // Use map() (not flatMap()) so if pageSizeLimit is non-nil but the value is nil
-            // the request's "no limit" setting overrides the app's setting.
-            pageSizeLimit: self.fluent.pagination.pageSizeLimit.map(\.value)
-                ?? self.application.fluent.pagination.pageSizeLimit
-        )!
+        guard
+            let database = self.application.databases.database(
+                id,
+                logger: logger,
+                on: self.eventLoop,
+                history: self.fluent.history.historyEnabled ? self.fluent.history.history : nil,
+                // Use map() (not flatMap()) so if pageSizeLimit is non-nil but the value is nil
+                // this request's "no limit" setting overrides the app's setting.
+                pageSizeLimit: self.fluent.pagination.pageSizeLimit.map(\.value)
+                    ?? self.application.fluent.pagination.pageSizeLimit
+            )
+        else {
+            Application.Fluent.missingDatabase(id)
+        }
+        return database
     }
 
     public var fluent: Fluent {
@@ -58,13 +63,18 @@ extension Application {
     }
 
     public func db(_ id: DatabaseID?, logger: Logger) -> any Database {
-        self.databases.database(
-            id,
-            logger: logger,
-            on: self.eventLoopGroup.any(),
-            history: self.fluent.history.historyEnabled ? self.fluent.history.history : nil,
-            pageSizeLimit: self.fluent.pagination.pageSizeLimit
-        )!
+        guard
+            let database = self.databases.database(
+                id,
+                logger: logger,
+                on: self.eventLoopGroup.any(),
+                history: self.fluent.history.historyEnabled ? self.fluent.history.history : nil,
+                pageSizeLimit: self.fluent.pagination.pageSizeLimit
+            )
+        else {
+            Fluent.missingDatabase(id)
+        }
+        return database
     }
 
     public var databases: Databases {
@@ -116,6 +126,13 @@ extension Application {
 
         struct Key: StorageKey {
             typealias Value = Storage
+        }
+
+        /// Called when `databases.database(_:)` can't produce a database for `id`.
+        static func missingDatabase(_ id: DatabaseID?) -> Never {
+            fatalError(
+                "Fluent: no database is configured for \(id.map { "`\($0.string)`" } ?? "the default ID"). Configure one with `app.databases.use(_:as:)` before accessing `db`."
+            )
         }
 
         struct Lifecycle: LifecycleHandler {
