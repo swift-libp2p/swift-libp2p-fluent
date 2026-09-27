@@ -22,30 +22,6 @@ import LibP2P
 final class PeerStoreEntry_Multiaddr: Model, @unchecked Sendable {
     public static let schema: String = "_fluent_peerstore_multiaddr"
 
-    struct Create: Migration {
-        func prepare(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore_multiaddr")
-                .id()
-                .field(
-                    "peer_id",
-                    .uuid,
-                    .required,
-                    .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
-                )
-                .field("address", .string, .required)
-                .unique(on: "peer_id", "address")
-                .create()
-        }
-
-        func revert(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore_multiaddr").delete()
-        }
-    }
-
-    public static var migration: any Migration {
-        Create()
-    }
-
     @ID(key: .id)
     public var id: UUID?
 
@@ -58,7 +34,17 @@ final class PeerStoreEntry_Multiaddr: Model, @unchecked Sendable {
     public init() {}
 
     public init(id: UUID? = nil, peerID: PeerStoreEntry.IDValue, address: Multiaddr) {
+        self.id = id
         self.$peer.id = peerID
         self.address = address.description
+    }
+
+    /// The stored address in canonical `/p2p/<peer>` form.
+    ///
+    /// Rows written before addresses were canonicalised may be missing the `/p2p` component.
+    /// Returns `nil` if the stored string isn't a valid `Multiaddr`.
+    func multiaddr(for peer: PeerID) -> Multiaddr? {
+        guard let address = try? Multiaddr(self.address) else { return nil }
+        return FluentPeerStore.canonicalAddress(address, for: peer) ?? address
     }
 }
