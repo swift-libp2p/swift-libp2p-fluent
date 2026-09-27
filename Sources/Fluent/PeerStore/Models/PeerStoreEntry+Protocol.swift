@@ -22,30 +22,6 @@ import LibP2P
 final class PeerStoreEntry_Protocol: Model, @unchecked Sendable {
     public static let schema: String = "_fluent_peerstore_protocols"
 
-    struct Create: Migration {
-        func prepare(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore_protocols")
-                .id()
-                .field(
-                    "peer_id",
-                    .uuid,
-                    .required,
-                    .references("_fluent_peerstore", "id", onDelete: .cascade, onUpdate: .cascade)
-                )
-                .field("protocol", .string, .required)
-                .unique(on: "peer_id", "protocol")
-                .create()
-        }
-
-        func revert(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore_protocols").delete()
-        }
-    }
-
-    public static var migration: any Migration {
-        Create()
-    }
-
     @ID(key: .id)
     public var id: UUID?
 
