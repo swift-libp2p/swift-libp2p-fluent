@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -27,19 +27,25 @@ struct FluentHistoryKey: StorageKey {
     typealias Value = FluentHistory
 }
 
-struct FluentHistory {
+struct FluentHistory: Sendable {
     let enabled: Bool
 }
 
 extension Request {
-    public struct Fluent {
+    /// Request-scoped Fluent state.
+    ///
+    /// - Note: Unlike an HTTP request, a libp2p `Request` is created for every stream event
+    ///   (`.ready`, each `.data`, `.closed`, `.error`). Request-scoped state, such as query
+    ///   history or a page size limit, only applies to the event it was set on. It doesn't carry
+    ///   over to later events on the same stream.
+    public struct Fluent: Sendable {
         let request: Request
 
         public var history: History {
             .init(fluent: self)
         }
 
-        public struct History {
+        public struct History: Sendable {
             let fluent: Fluent
         }
     }
