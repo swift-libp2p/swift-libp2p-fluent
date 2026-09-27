@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -53,9 +53,17 @@ private struct FluentCache: Cache {
 
     func get<T>(_ key: String, as type: T.Type) -> EventLoopFuture<T?>
     where T: Decodable & Libp2pSendableMetatype {
-        CacheEntry.query(on: self.database)
+        let database = self.database
+        return CacheEntry.query(on: database)
             .filter(\.$key == key)
             .first()
+            .flatMap { entry -> EventLoopFuture<CacheEntry?> in
+                // Delete expired entries.
+                guard let entry, let expiresAt = entry.expiresAt, expiresAt <= Date() else {
+                    return database.eventLoop.makeSucceededFuture(entry)
+                }
+                return entry.delete(on: database).map { nil }
+            }
             .flatMapThrowing { entry -> T? in
                 try entry.map { try JSONDecoder().decode(T.self, from: Data($0.value.utf8)) }
             }
