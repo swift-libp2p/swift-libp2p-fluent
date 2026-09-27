@@ -70,20 +70,52 @@ private struct FluentCache: Cache {
     }
 
     func set(_ key: String, to value: (some Encodable)?) -> EventLoopFuture<Void> {
-        if let value = value {
-            do {
-                let data = try JSONEncoder().encode(value)
-                let entry = CacheEntry(
-                    key: key,
-                    value: String(decoding: data, as: UTF8.self)
-                )
-                return entry.create(on: self.database)
-            } catch {
-                return self.database.eventLoop.makeFailedFuture(error)
-            }
-        } else {
-            return CacheEntry.query(on: self.database).filter(\.$key == key).delete()
+        self.set(key, to: value, expiresIn: nil)
+    }
+
+    func set<T>(_ key: String, to value: T?, expiresIn expirationTime: CacheExpirationTime?) -> EventLoopFuture<Void>
+    where T: Encodable {
+        let database = self.database
+        guard let value else {
+            return CacheEntry.query(on: database).filter(\.$key == key).delete()
         }
+        let encoded: String
+        do {
+            encoded = String(decoding: try JSONEncoder().encode(value), as: UTF8.self)
+        } catch {
+            return database.eventLoop.makeFailedFuture(error)
+        }
+        let expiresAt = expirationTime.map { Date().addingTimeInterval(TimeInterval($0.seconds)) }
+
+        return database.eventLoop.makeFutureWithTask {
+            // `key` is unique, so lets update an existing entry instead of failing.
+            if try await Self.update(key: key, value: encoded, expiresAt: expiresAt, on: database) { return }
+            do {
+                try await CacheEntry(key: key, value: encoded, expiresAt: expiresAt).create(on: database)
+            } catch {
+                // A concurrent `set` may have inserted the same key between our lookup and insert.
+                // Fall back to updating that row, and rethrow if this fails as well.
+                guard try await Self.update(key: key, value: encoded, expiresAt: expiresAt, on: database) else {
+                    throw error
+                }
+            }
+        }
+    }
+
+    /// Updates the entry for `key` if it exists. Returns `false` when there's no entry to update.
+    private static func update(
+        key: String,
+        value: String,
+        expiresAt: Date?,
+        on database: any Database
+    ) async throws -> Bool {
+        guard let existing = try await CacheEntry.query(on: database).filter(\.$key == key).first() else {
+            return false
+        }
+        existing.value = value
+        existing.expiresAt = expiresAt
+        try await existing.update(on: database)
+        return true
     }
 
     func `for`(_ request: Request) -> Self {
