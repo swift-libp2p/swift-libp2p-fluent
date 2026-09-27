@@ -25,8 +25,8 @@ import NIOConcurrencyHelpers
 
 @Suite("Cache Tests")
 struct CacheTests {
-    @Test func cacheMigrationName() {
-        #expect(CacheEntry.migration.name == "Fluent.CacheEntry.Create")
+    @Test func cacheMigrationNames() {
+        #expect(CacheEntry.migrations.map(\.name) == ["Fluent.CacheEntry.Create", "Fluent.CacheEntry.AddExpiration"])
     }
 
     @Test func cacheGet() async throws {
@@ -34,7 +34,7 @@ struct CacheTests {
             // Setup test db.
             let test = ArrayTestDatabase()
             app.databases.use(test.configuration, as: .test)
-            app.migrations.add(CacheEntry.migration)
+            app.migrations.add(CacheEntry.migrations)
 
             // Configure cache.
             app.caches.use(.fluent)
@@ -81,7 +81,7 @@ struct CacheTests {
                 return [TestOutput(["id": UUID()])]
             }
             app.databases.use(test.configuration, as: .test)
-            app.migrations.add(CacheEntry.migration)
+            app.migrations.add(CacheEntry.migrations)
 
             // Configure cache.
             app.caches.use(.fluent)
