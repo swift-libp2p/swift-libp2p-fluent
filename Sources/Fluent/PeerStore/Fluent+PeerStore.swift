@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -257,7 +257,7 @@ extension FluentPeerStore {
                 let newPeer = PeerStoreEntry(peerID: key)
                 try await newPeer.create(on: database)
                 let metadata = PeerStoreEntry_Metadata()
-                metadata.key = MetadataBook.Keys.Discovered.rawValue
+                metadata.key = MetadataBook.Keys.discovered.rawValue
                 metadata.value = "\(Date().timeIntervalSince1970)"
                 try? await newPeer.$metadata.create(metadata, on: database)
 
