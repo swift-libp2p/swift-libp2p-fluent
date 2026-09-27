@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -111,7 +111,7 @@ extension Application {
         }
     }
 
-    public struct Fluent {
+    public struct Fluent: Sendable {
         final class Storage: Sendable {
             let databases: Databases
             let migrations: Migrations
@@ -124,7 +124,7 @@ extension Application {
             }
         }
 
-        struct Key: StorageKey {
+        struct Key: StorageKey, LockKey {
             typealias Value = Storage
         }
 
@@ -177,21 +177,29 @@ extension Application {
 
         let application: Application
 
+        /// Lazily creates Fluent's storage on first access.
         var storage: Storage {
-            if self.application.storage[Key.self] == nil {
-                self.initialize()
+            let lock = self.application.locks.lock(for: Key.self)
+            lock.lock()
+            defer { lock.unlock() }
+            if let existing = self.application.storage[Key.self] {
+                return existing
             }
-            return self.application.storage[Key.self]!
-        }
-
-        func initialize() {
-            self.application.storage[Key.self] = .init(
+            let storage = Storage(
                 threadPool: self.application.threadPool,
                 on: self.application.eventLoopGroup,
                 migrationLogLevel: .info
             )
+            // If the app is shutting down skip the registration with storage.
+            guard !self.application.isShuttingDown else { return storage }
+            self.application.storage[Key.self] = storage
             self.application.lifecycle.use(Lifecycle())
             self.application.asyncCommands.use(MigrateCommand(), as: "migrate")
+            return storage
+        }
+
+        func initialize() {
+            _ = self.storage
         }
 
         public var migrationLogLevel: Logger.Level {
@@ -199,10 +207,10 @@ extension Application {
             nonmutating set { self.storage.migrationLogLevel.withLockedValue { $0 = newValue } }
         }
 
-        public struct History { let fluent: Fluent }
+        public struct History: Sendable { let fluent: Fluent }
         public var history: History { .init(fluent: self) }
 
-        public struct Pagination { let fluent: Fluent }
+        public struct Pagination: Sendable { let fluent: Fluent }
         public var pagination: Pagination { .init(fluent: self) }
     }
 
@@ -210,10 +218,3 @@ extension Application {
         .init(application: self)
     }
 }
-
-// TODO: Extend our core types to Fluent
-// PeerRecord
-// PeerInfo
-// Multiaddr
-
-// TODO: Implement a Fluent backed PeerStore
