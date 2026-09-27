@@ -36,6 +36,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/vapor/fluent-kit.git", .upToNextMajor(from: "1.52.2")),
         .package(url: "https://github.com/swift-libp2p/swift-libp2p.git", .upToNextMinor(from: "0.4.0")),
+        .package(url: "https://github.com/vapor/sql-kit.git", .upToNextMajor(from: "3.29.3")),
         .package(url: "https://github.com/vapor/console-kit.git", .upToNextMajor(from: "4.15.0")),
         .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "2.87.0")),
         .package(url: "https://github.com/vapor/routing-kit.git", .upToNextMajor(from: "4.0.0")),
@@ -47,6 +48,7 @@ let package = Package(
             name: "Fluent",
             dependencies: [
                 .product(name: "FluentKit", package: "fluent-kit"),
+                .product(name: "SQLKit", package: "sql-kit"),
                 .product(name: "LibP2P", package: "swift-libp2p"),
                 .product(name: "ConsoleKit", package: "console-kit"),
                 .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
