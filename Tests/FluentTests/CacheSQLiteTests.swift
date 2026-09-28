@@ -94,11 +94,12 @@ struct CacheSQLiteTests {
 
     /// Runs `test` against an app whose cache is backed by a freshly migrated in-memory SQLite database.
     private func withCacheApp(_ test: (Application) async throws -> Void) async throws {
-        try await withApp(configure: { app in
+        let config: ((Application) async throws -> Void) = { app in
             app.databases.use(.sqlite(.memory), as: .sqlite)
             app.migrations.add(CacheEntry.migrations)
             app.caches.use(.fluent)
-        }) { app in
+        }
+        try await withApp(configure: config) { app in
             try await app.autoMigrate()
             try await test(app)
         }
@@ -170,11 +171,12 @@ extension CacheSQLiteTests {
     /// Runs `test` against an in-memory SQLite database that only has the v1 cache schema
     /// (`CacheEntry.Create`), seeded with two entries written the way v1 stored them.
     private func withV1CacheApp(_ test: (Application) async throws -> Void) async throws {
-        try await withApp(configure: { app in
+        let config: ((Application) async throws -> Void) = { app in
             app.databases.use(.sqlite(.memory), as: .sqlite)
             app.migrations.add(try #require(CacheEntry.migrations.first))
             app.caches.use(.fluent)
-        }) { app in
+        }
+        try await withApp(configure: config) { app in
             try await app.autoMigrate()
             #expect(try await Self.cacheColumns(app) == ["id", "key", "value"])
 

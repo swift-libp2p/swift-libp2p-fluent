@@ -263,7 +263,10 @@ struct PeerStoreSQLiteTests {
 
             try await store.add(protocol: SemVerProtocol("/echo/1.4.2")!, toPeer: match)
             try await store.add(protocol: SemVerProtocol("/echo")!, toPeer: unversioned)
-            for (peer, proto) in zip(nearMisses, ["/echo/10.0.0", "/echo/2.0.0", "/echo/sub/1.0.0", "/echoes/1.0.0", "/ECHO/1.0.0"]) {
+            for (peer, proto) in zip(
+                nearMisses,
+                ["/echo/10.0.0", "/echo/2.0.0", "/echo/sub/1.0.0", "/echoes/1.0.0", "/ECHO/1.0.0"]
+            ) {
                 try await store.add(protocol: SemVerProtocol(proto)!, toPeer: peer)
             }
 
@@ -471,7 +474,11 @@ struct PeerStoreSQLiteTests {
         try await Self.withStore { store in
             let peer = try Self.randomPeer()
             let address = try Multiaddr("/ip4/127.0.0.1/tcp/4001")
-            let record = PeerRecord(peerID: peer, multiaddrs: [try Multiaddr("/ip4/127.0.0.1/tcp/4002")], sequenceNumber: 1)
+            let record = PeerRecord(
+                peerID: peer,
+                multiaddrs: [try Multiaddr("/ip4/127.0.0.1/tcp/4002")],
+                sequenceNumber: 1
+            )
 
             let writes: [EventLoopFuture<Void>] = [
                 store.add(key: peer, on: nil),
@@ -687,13 +694,14 @@ struct PeerStoreSQLiteTests {
 
     @Test("The store can be registered before the database is configured")
     func useBeforeDatabasesAreConfigured() async throws {
+        let config: ((Application) async throws -> Void) = { app in
+            app.peerstore.use(.fluent)
+            app.databases.use(.sqlite(.memory), as: .sqlite)
+            app.peerstore.prepareMigrations()
+        }
         try await withApp(
             autoStart: false,
-            configure: { app in
-                app.peerstore.use(.fluent)
-                app.databases.use(.sqlite(.memory), as: .sqlite)
-                app.peerstore.prepareMigrations()
-            }
+            configure: config
         ) { app in
             try await app.autoMigrate()
             #expect(app.peers is FluentPeerStore)
@@ -727,8 +735,16 @@ struct PeerStoreSQLiteTests {
             #expect(entryColumns["key_pair"] == "BLOB")
             #expect(try await Self.columnTypes(of: PeerStoreEntry_Metadata.schema, on: sql)["value"] == "BLOB")
             #expect(try await Self.columnTypes(of: PeerStoreEntry_Record.schema, on: sql)["record"] == "BLOB")
-            #expect(try await Self.indexNames(of: PeerStoreEntry_Protocol.schema, on: sql).contains("_fluent_peerstore_protocols_protocol_idx"))
-            #expect(try await Self.indexNames(of: PeerStoreEntry_Multiaddr.schema, on: sql).contains("_fluent_peerstore_multiaddr_address_idx"))
+            #expect(
+                try await Self.indexNames(of: PeerStoreEntry_Protocol.schema, on: sql).contains(
+                    "_fluent_peerstore_protocols_protocol_idx"
+                )
+            )
+            #expect(
+                try await Self.indexNames(of: PeerStoreEntry_Multiaddr.schema, on: sql).contains(
+                    "_fluent_peerstore_multiaddr_address_idx"
+                )
+            )
 
             // `peer_id` is the canonical id, so one peer can only be stored once, whichever spelling it's
             // created from.
@@ -821,12 +837,13 @@ struct PeerStoreSQLiteTests {
         configuration: FluentPeerStore.Configuration = .init(),
         _ body: (FluentPeerStore) async throws -> Void
     ) async throws {
+        let config: ((Application) async throws -> Void) = { app in
+            app.databases.use(.sqlite(.memory), as: .sqlite)
+            app.peerstore.prepareMigrations()
+        }
         try await withApp(
             autoStart: false,
-            configure: { app in
-                app.databases.use(.sqlite(.memory), as: .sqlite)
-                app.peerstore.prepareMigrations()
-            }
+            configure: config
         ) { app in
             try await app.autoMigrate()
             try await body(FluentPeerStore(application: app, configuration: configuration))
@@ -836,12 +853,13 @@ struct PeerStoreSQLiteTests {
     /// Runs `body` against an app with an in-memory SQLite database and the PeerStore migrations
     /// registered, but not yet run.
     private static func withSQLApp(_ body: (Application, any SQLDatabase) async throws -> Void) async throws {
+        let config: ((Application) async throws -> Void) = { app in
+            app.databases.use(.sqlite(.memory), as: .sqlite)
+            app.peerstore.prepareMigrations()
+        }
         try await withApp(
             autoStart: false,
-            configure: { app in
-                app.databases.use(.sqlite(.memory), as: .sqlite)
-                app.peerstore.prepareMigrations()
-            }
+            configure: config
         ) { app in
             try await body(app, try #require(app.db as? any SQLDatabase))
         }
@@ -870,7 +888,12 @@ extension FluentPeerStore {
     /// The store's database, for asserting on rows directly.
     fileprivate var testDatabase: any Database {
         get throws {
-            guard let database = self.databases.database(self.databaseID, logger: .init(label: "test"), on: self.eventLoop)
+            guard
+                let database = self.databases.database(
+                    self.databaseID,
+                    logger: .init(label: "test"),
+                    on: self.eventLoop
+                )
             else { throw Error.databaseNotConfigured(self.databaseID) }
             return database
         }
