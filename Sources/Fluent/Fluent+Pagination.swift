@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -31,16 +31,20 @@ struct AppPaginationKey: StorageKey {
     typealias Value = AppPagination
 }
 
-struct AppPagination {
+struct AppPagination: Sendable {
     let pageSizeLimit: Int?
 }
 
 extension Request.Fluent {
+    /// Request-scoped pagination settings.
+    ///
+    /// - Todo: Ensure this state persists for the lifetime of the stream (not just individual Request events).
+    ///   This is dependent on swift-libp2p and how it constructs Requests for its Responders.
     public var pagination: Pagination {
         .init(fluent: self)
     }
 
-    public struct Pagination {
+    public struct Pagination: Sendable {
         let fluent: Request.Fluent
     }
 }

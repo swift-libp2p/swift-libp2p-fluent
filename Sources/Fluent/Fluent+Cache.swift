@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -53,29 +53,69 @@ private struct FluentCache: Cache {
 
     func get<T>(_ key: String, as type: T.Type) -> EventLoopFuture<T?>
     where T: Decodable & Libp2pSendableMetatype {
-        CacheEntry.query(on: self.database)
+        let database = self.database
+        return CacheEntry.query(on: database)
             .filter(\.$key == key)
             .first()
+            .flatMap { entry -> EventLoopFuture<CacheEntry?> in
+                // Delete expired entries.
+                guard let entry, let expiresAt = entry.expiresAt, expiresAt <= Date() else {
+                    return database.eventLoop.makeSucceededFuture(entry)
+                }
+                return entry.delete(on: database).map { nil }
+            }
             .flatMapThrowing { entry -> T? in
                 try entry.map { try JSONDecoder().decode(T.self, from: Data($0.value.utf8)) }
             }
     }
 
     func set(_ key: String, to value: (some Encodable)?) -> EventLoopFuture<Void> {
-        if let value = value {
-            do {
-                let data = try JSONEncoder().encode(value)
-                let entry = CacheEntry(
-                    key: key,
-                    value: String(decoding: data, as: UTF8.self)
-                )
-                return entry.create(on: self.database)
-            } catch {
-                return self.database.eventLoop.makeFailedFuture(error)
-            }
-        } else {
-            return CacheEntry.query(on: self.database).filter(\.$key == key).delete()
+        self.set(key, to: value, expiresIn: nil)
+    }
+
+    func set<T>(_ key: String, to value: T?, expiresIn expirationTime: CacheExpirationTime?) -> EventLoopFuture<Void>
+    where T: Encodable {
+        let database = self.database
+        guard let value else {
+            return CacheEntry.query(on: database).filter(\.$key == key).delete()
         }
+        let encoded: String
+        do {
+            encoded = String(decoding: try JSONEncoder().encode(value), as: UTF8.self)
+        } catch {
+            return database.eventLoop.makeFailedFuture(error)
+        }
+        let expiresAt = expirationTime.map { Date().addingTimeInterval(TimeInterval($0.seconds)) }
+
+        return database.eventLoop.makeFutureWithTask {
+            // `key` is unique, so lets update an existing entry instead of failing.
+            if try await Self.update(key: key, value: encoded, expiresAt: expiresAt, on: database) { return }
+            do {
+                try await CacheEntry(key: key, value: encoded, expiresAt: expiresAt).create(on: database)
+            } catch {
+                // A concurrent `set` may have inserted the same key between our lookup and insert.
+                // Fall back to updating that row, and rethrow if this fails as well.
+                guard try await Self.update(key: key, value: encoded, expiresAt: expiresAt, on: database) else {
+                    throw error
+                }
+            }
+        }
+    }
+
+    /// Updates the entry for `key` if it exists. Returns `false` when there's no entry to update.
+    private static func update(
+        key: String,
+        value: String,
+        expiresAt: Date?,
+        on database: any Database
+    ) async throws -> Bool {
+        guard let existing = try await CacheEntry.query(on: database).filter(\.$key == key).first() else {
+            return false
+        }
+        existing.value = value
+        existing.expiresAt = expiresAt
+        try await existing.update(on: database)
+        return true
     }
 
     func `for`(_ request: Request) -> Self {
@@ -101,6 +141,30 @@ public final class CacheEntry: Model, @unchecked Sendable {
         }
     }
 
+    /// Adds the `expires_at` column used to honour `set(_:to:expiresIn:)`.
+    struct AddExpiration: Migration {
+        func prepare(on database: any Database) -> EventLoopFuture<Void> {
+            database.schema("_fluent_cache")
+                .field("expires_at", .datetime)
+                .update()
+        }
+
+        func revert(on database: any Database) -> EventLoopFuture<Void> {
+            database.schema("_fluent_cache")
+                .deleteField("expires_at")
+                .update()
+        }
+    }
+
+    /// Every migration the Fluent cache needs, in order.
+    ///
+    ///     app.migrations.add(CacheEntry.migrations)
+    ///
+    public static var migrations: [any Migration] {
+        [Create(), AddExpiration()]
+    }
+
+    @available(*, deprecated, message: "Use `CacheEntry.migrations`, which also adds the `expires_at` column.")
     public static var migration: any Migration {
         Create()
     }
@@ -114,10 +178,16 @@ public final class CacheEntry: Model, @unchecked Sendable {
     @Field(key: "value")
     public var value: String
 
+    /// When this entry expires, or `nil` if it never does.
+    @OptionalField(key: "expires_at")
+    public var expiresAt: Date?
+
     public init() {}
 
-    public init(id: UUID? = nil, key: String, value: String) {
+    public init(id: UUID? = nil, key: String, value: String, expiresAt: Date? = nil) {
+        self.id = id
         self.key = key
         self.value = value
+        self.expiresAt = expiresAt
     }
 }

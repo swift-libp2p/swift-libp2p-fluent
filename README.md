@@ -34,7 +34,7 @@ let package = Package(
     ...
     dependencies: [
         ...
-        .package(url: "https://github.com/swift-libp2p/swift-libp2p-fluent.git", .upToNextMinor(from: "0.0.1"))
+        .package(url: "https://github.com/swift-libp2p/swift-libp2p-fluent.git", .upToNextMinor(from: "0.1.0"))
     ],
         ...
         .target(
@@ -56,30 +56,68 @@ import Fluent
 // import <Your Fluent Driver>
 
 /// Configure your Libp2p networking stack...
-let lib = try await Application.make(.detect(), peerID: .ephemeral(.Ed25519))
+let app = try await Application.make(.detect(), peerID: .ephemeral(.Ed25519))
 
 // To use the database throughout your app
 app.databases.use( /*Your database driver*/ )
 
-// To use the configured databse for the peerstore
-app.peerstores.use(.fluent)
+// To use the configured database for the peerstore
+app.peerstore.prepareMigrations()
+app.peerstore.use(.fluent)
 
-// To use the configured database for cache 
+// To use the configured database for cache
+app.migrations.add(CacheEntry.migrations)
 app.caches.use(.fluent)
 
+// Run any pending migrations (or launch with the `--auto-migrate` flag)
+try await app.autoMigrate()
 ```
+
+> [!IMPORTANT]
+> In v0.1.0, cache now supports expiration, register `CacheEntry.migrations` and re-run your migrations to update your existing table.
+
+### PeerStore
+
+`FluentPeerStore` behaves like swift-libp2p's in-memory peerstore, but persists across restarts:
+- Operations run in the order they're called.
+- Both versions of a peer's id (`12D3Koo…` and `Qm…`) resolve to the same peer.
+- Addresses are stored in their `/p2p/<peer>` form.
+- The store is capped at a maximum number of peers.
+
+``` swift
+// Capacity limits (these are the defaults)
+app.peerstore.use(.fluent(nil, configuration: .init(maxPeers: 5_000, maxRecordsPerPeer: 3)))
+
+// Maintenance helpers that aren't part of the `PeerStore` protocol
+if let store = app.peers as? FluentPeerStore {
+    try await store.prunePeers(olderThan: .minutes(10)).get()
+    try await store.trimAllRecords().get()
+}
+```
+
+> [!IMPORTANT]
+> In v0.1.0, the peerstore has a new schema. Peers are keyed by their canonical id, and metadata and records are stored as binary data. `app.peerstore.prepareMigrations()` registers a single migration that replaces the old peerstore tables. Migrating drops all existing data.
 
 ## Drivers
 
 | Name | Description | Build (macOS & Linux) |
 | --------- | --------- | --------- |
-| ** Supported ** | 
+| **Supported** |
 | [`SQLite`](//github.com/vapor/fluent-sqlite-driver) | Fluent driver for SQLite | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
-| [`PostgreSQL`](//github.com/vapor/fluent-postgres-driver) | Fluent driver for PostgrSQL | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
+| [`PostgreSQL`](//github.com/vapor/fluent-postgres-driver) | Fluent driver for PostgreSQL | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
 | [`MySQL`](//github.com/vapor/fluent-mysql-driver) | Fluent driver for MySQL / MariaDB | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
 | [`MongoDB`](//github.com/vapor/fluent-mongo-driver) | Fluent driver for MongoDB | [![Build & Test Drivers](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml/badge.svg)](https://github.com/swift-libp2p/swift-libp2p-fluent/actions/workflows/drivers.yml) |
 | **Community Drivers** |
 | [`Github Tag`](//github.com/topics/fluent-driver) | A list of all fluent drivers | N/A |
+
+
+## Running the tests
+
+`swift test` runs the unit tests against a mock database. To run additional tests against an in-memory SQLite database enable the SQLiteTests trait (which will pull in the appropriate dependencies).
+
+```sh
+swift test --traits SQLiteTests
+```
 
 
 ## Contributing
@@ -95,5 +133,5 @@ Let's make this code better together! 🤝
 
 ## License
 
-[MIT](LICENSE) © 2026 Breth Inc.
+[MIT](LICENSE.md) © 2026 Breth Inc.
 

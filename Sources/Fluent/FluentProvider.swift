@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -31,16 +31,21 @@ extension Request {
     }
 
     public func db(_ id: DatabaseID?, logger: Logger) -> any Database {
-        self.application.databases.database(
-            id,
-            logger: logger,
-            on: self.eventLoop,
-            history: self.fluent.history.historyEnabled ? self.fluent.history.history : nil,
-            // Use map() (not flatMap()) so if pageSizeLimit is non-nil but the value is nil
-            // the request's "no limit" setting overrides the app's setting.
-            pageSizeLimit: self.fluent.pagination.pageSizeLimit.map(\.value)
-                ?? self.application.fluent.pagination.pageSizeLimit
-        )!
+        guard
+            let database = self.application.databases.database(
+                id,
+                logger: logger,
+                on: self.eventLoop,
+                history: self.fluent.history.historyEnabled ? self.fluent.history.history : nil,
+                // Use map() (not flatMap()) so if pageSizeLimit is non-nil but the value is nil
+                // this request's "no limit" setting overrides the app's setting.
+                pageSizeLimit: self.fluent.pagination.pageSizeLimit.map(\.value)
+                    ?? self.application.fluent.pagination.pageSizeLimit
+            )
+        else {
+            Application.Fluent.missingDatabase(id)
+        }
+        return database
     }
 
     public var fluent: Fluent {
@@ -58,13 +63,18 @@ extension Application {
     }
 
     public func db(_ id: DatabaseID?, logger: Logger) -> any Database {
-        self.databases.database(
-            id,
-            logger: logger,
-            on: self.eventLoopGroup.any(),
-            history: self.fluent.history.historyEnabled ? self.fluent.history.history : nil,
-            pageSizeLimit: self.fluent.pagination.pageSizeLimit
-        )!
+        guard
+            let database = self.databases.database(
+                id,
+                logger: logger,
+                on: self.eventLoopGroup.any(),
+                history: self.fluent.history.historyEnabled ? self.fluent.history.history : nil,
+                pageSizeLimit: self.fluent.pagination.pageSizeLimit
+            )
+        else {
+            Fluent.missingDatabase(id)
+        }
+        return database
     }
 
     public var databases: Databases {
@@ -101,7 +111,7 @@ extension Application {
         }
     }
 
-    public struct Fluent {
+    public struct Fluent: Sendable {
         final class Storage: Sendable {
             let databases: Databases
             let migrations: Migrations
@@ -114,8 +124,15 @@ extension Application {
             }
         }
 
-        struct Key: StorageKey {
+        struct Key: StorageKey, LockKey {
             typealias Value = Storage
+        }
+
+        /// Called when `databases.database(_:)` can't produce a database for `id`.
+        static func missingDatabase(_ id: DatabaseID?) -> Never {
+            fatalError(
+                "Fluent: no database is configured for \(id.map { "`\($0.string)`" } ?? "the default ID"). Configure one with `app.databases.use(_:as:)` before accessing `db`."
+            )
         }
 
         struct Lifecycle: LifecycleHandler {
@@ -160,21 +177,29 @@ extension Application {
 
         let application: Application
 
+        /// Lazily creates Fluent's storage on first access.
         var storage: Storage {
-            if self.application.storage[Key.self] == nil {
-                self.initialize()
+            let lock = self.application.locks.lock(for: Key.self)
+            lock.lock()
+            defer { lock.unlock() }
+            if let existing = self.application.storage[Key.self] {
+                return existing
             }
-            return self.application.storage[Key.self]!
-        }
-
-        func initialize() {
-            self.application.storage[Key.self] = .init(
+            let storage = Storage(
                 threadPool: self.application.threadPool,
                 on: self.application.eventLoopGroup,
                 migrationLogLevel: .info
             )
+            // If the app is shutting down skip the registration with storage.
+            guard !self.application.isShuttingDown else { return storage }
+            self.application.storage[Key.self] = storage
             self.application.lifecycle.use(Lifecycle())
             self.application.asyncCommands.use(MigrateCommand(), as: "migrate")
+            return storage
+        }
+
+        func initialize() {
+            _ = self.storage
         }
 
         public var migrationLogLevel: Logger.Level {
@@ -182,10 +207,10 @@ extension Application {
             nonmutating set { self.storage.migrationLogLevel.withLockedValue { $0 = newValue } }
         }
 
-        public struct History { let fluent: Fluent }
+        public struct History: Sendable { let fluent: Fluent }
         public var history: History { .init(fluent: self) }
 
-        public struct Pagination { let fluent: Fluent }
+        public struct Pagination: Sendable { let fluent: Fluent }
         public var pagination: Pagination { .init(fluent: self) }
     }
 
@@ -193,10 +218,3 @@ extension Application {
         .init(application: self)
     }
 }
-
-// TODO: Extend our core types to Fluent
-// PeerRecord
-// PeerInfo
-// Multiaddr
-
-// TODO: Implement a Fluent backed PeerStore

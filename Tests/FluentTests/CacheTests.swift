@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -19,13 +19,14 @@
 import Fluent
 import LibP2P
 import LibP2PTesting
+import NIOConcurrencyHelpers
 import Testing
 import XCTFluent
 
 @Suite("Cache Tests")
 struct CacheTests {
-    @Test func cacheMigrationName() {
-        #expect(CacheEntry.migration.name == "Fluent.CacheEntry.Create")
+    @Test func cacheMigrationNames() {
+        #expect(CacheEntry.migrations.map(\.name) == ["Fluent.CacheEntry.Create", "Fluent.CacheEntry.AddExpiration"])
     }
 
     @Test func cacheGet() async throws {
@@ -33,7 +34,7 @@ struct CacheTests {
             // Setup test db.
             let test = ArrayTestDatabase()
             app.databases.use(test.configuration, as: .test)
-            app.migrations.add(CacheEntry.migration)
+            app.migrations.add(CacheEntry.migrations)
 
             // Configure cache.
             app.caches.use(.fluent)
@@ -64,6 +65,8 @@ struct CacheTests {
             let canary = Canary()
             // Setup test db.
             let test = CallbackTestDatabase { query in
+                // `set` now queries for an existing key before creating, return an empty array, simulating no existing key.
+                guard case .create = query.action else { return [] }
                 switch query.input[0] {
                 case .dictionary(let dict):
                     switch dict["value"] {
@@ -80,7 +83,7 @@ struct CacheTests {
                 return [TestOutput(["id": UUID()])]
             }
             app.databases.use(test.configuration, as: .test)
-            app.migrations.add(CacheEntry.migration)
+            app.migrations.add(CacheEntry.migrations)
 
             // Configure cache.
             app.caches.use(.fluent)

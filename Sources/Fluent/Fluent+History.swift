@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -27,19 +27,23 @@ struct FluentHistoryKey: StorageKey {
     typealias Value = FluentHistory
 }
 
-struct FluentHistory {
+struct FluentHistory: Sendable {
     let enabled: Bool
 }
 
 extension Request {
-    public struct Fluent {
+    /// Request-scoped Fluent state.
+    ///
+    /// - Todo: Make sure this scope lasts for the entire streams lifecycle (not just per Request event)
+    ///   This depends on how swift-libp2p constructs Requests for its Responders.
+    public struct Fluent: Sendable {
         let request: Request
 
         public var history: History {
             .init(fluent: self)
         }
 
-        public struct History {
+        public struct History: Sendable {
             let fluent: Fluent
         }
     }

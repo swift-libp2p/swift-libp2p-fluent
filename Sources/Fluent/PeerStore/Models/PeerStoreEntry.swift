@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -22,32 +22,14 @@ import LibP2P
 final class PeerStoreEntry: Model, @unchecked Sendable {
     public static let schema: String = "_fluent_peerstore"
 
-    struct Create: Migration {
-        func prepare(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore")
-                .id()
-                .field("peer_id", .string, .required)
-                .field("key_pair", .data)
-                .unique(on: "peer_id")
-                .create()
-        }
-
-        func revert(on database: any Database) -> EventLoopFuture<Void> {
-            database.schema("_fluent_peerstore").delete()
-        }
-    }
-
-    public static var migration: any Migration {
-        Create()
-    }
-
     @ID(key: .id)
     public var id: UUID?
 
+    /// The peer's canonical (`Qm…`) b58 id. See ``canonicalID(for:)-(PeerID)``.
     @Field(key: "peer_id")
     public var peer: String
 
-    // Marshalled keypair
+    /// The peer's marshalled public key, or `nil` for a peer we only know by id.
     @OptionalField(key: "key_pair")
     public var keypair: Data?
 
@@ -67,60 +49,70 @@ final class PeerStoreEntry: Model, @unchecked Sendable {
 
     public init(id: UUID? = nil, peerID: PeerID) {
         self.id = id
-        self.peer = peerID.b58String
+        self.peer = Self.canonicalID(for: peerID)
         self.keypair = try? Data(peerID.marshalPublicKey())
     }
 
+    /// The value stored in `peer_id`, the peer's SHA-256 (`Qm…`) b58 id.
+    ///
+    /// `PeerID` treats an embedded-key id (`12D3Koo…`) and its SHA-256 equivalent as the same peer,
+    /// so keying the table on this keeps one row per peer no matter which type we encounter first.
+    /// An embedded pub key id is stored in `key_pair`.
+    static func canonicalID(for peer: PeerID) -> String {
+        (try? peer.traditionalB58String()) ?? peer.b58String
+    }
+
+    /// Resolves a b58 or CID string to its ``canonicalID(for:)``, or `nil` if it can't be parsed.
+    static func canonicalID(for string: String) -> String? {
+        (try? PeerID(cid: string)).map(Self.canonicalID(for:))
+    }
+
+    /// The stored `PeerID`, rebuilt from the public key when there is one (so Ed25519 peers come
+    /// back in their `12D3Koo…` form), otherwise from the canonical id.
     public var peerID: PeerID {
         get throws {
             if let keypair = self.keypair {
                 return try PeerID(marshaledPublicKey: keypair)
             } else {
-                return try PeerID(fromBytesID: .init(decoding: peer, as: .base58btc))
+                return try PeerID(fromBytesID: BaseEncoding.decode(peer, as: .base58btc))
             }
         }
     }
 
-    public func asPeerInfo(on db: any Database) async throws -> PeerInfo {
-        let mas = try await self.$multiaddrs.get(on: db)
-        let addresses = mas.compactMap { try? Multiaddr($0.address) }
-        return try PeerInfo(peer: peerID, addresses: addresses)
+    /// Builds a `PeerInfo` from this entry.
+    ///
+    /// - Important: `multiaddrs` must be eager loaded (`.with(\.$multiaddrs)`).
+    func makePeerInfo() throws -> PeerInfo {
+        let peerID = try self.peerID
+        return PeerInfo(
+            peer: peerID,
+            addresses: (self.$multiaddrs.value ?? []).compactMap { $0.multiaddr(for: peerID) }.uniqued()
+        )
     }
 
-    public func asComprehensivePeer(on db: any Database) async throws -> ComprehensivePeer {
-        async let getMAs = try? self.$multiaddrs.get(on: db)
-        async let getProtos = try? self.$protocols.get(on: db)
-        async let getRecs = try? self.$records.get(on: db)
-        async let getMetas = try? self.$metadata.get(on: db)
-
-        let (mas, protos, recs, metas) = await (getMAs, getProtos, getRecs, getMetas)
-
-        // Prep our Multiaddrs
-        let addresses = Set((mas ?? []).compactMap { try? Multiaddr($0.address) })
-
-        // Prep our Protocols
-        let protocols = Set((protos ?? []).compactMap { SemVerProtocol($0.protocol) })
-
-        // Prep our Records
-        let records = Set(
-            (recs ?? []).compactMap { elem -> PeerRecord? in
-                guard let asData = Data(base64Encoded: elem.record) else { return nil }
-                return try? PeerRecord(marshaledData: asData)
-            }
-        )
-
-        // Prep our Metadata
-        var metadataDictionary: [String: [UInt8]] = [:]
-        for meta in (metas ?? []) {
-            metadataDictionary[meta.key] = [UInt8](Data(meta.value.utf8))
+    /// Builds a `ComprehensivePeer` from this entry.
+    ///
+    /// - Important: Every child relation must be eager loaded. Rows that can't be decoded are skipped.
+    func makeComprehensivePeer() throws -> ComprehensivePeer {
+        let peerID = try self.peerID
+        var metadata: Metadata = [:]
+        for meta in self.$metadata.value ?? [] {
+            metadata[meta.key] = [UInt8](meta.value)
         }
-
-        return try .init(
-            id: self.peerID,
-            addresses: addresses,
-            protocols: protocols,
-            metadata: metadataDictionary,
-            records: records
+        return ComprehensivePeer(
+            id: peerID,
+            addresses: Set((self.$multiaddrs.value ?? []).compactMap { $0.multiaddr(for: peerID) }),
+            protocols: Set((self.$protocols.value ?? []).compactMap { SemVerProtocol($0.protocol) }),
+            metadata: metadata,
+            records: Set((self.$records.value ?? []).compactMap { try? $0.peerRecord() })
         )
+    }
+}
+
+extension Sequence where Element: Hashable {
+    /// The elements of this sequence with duplicates removed, keeping the first occurrence.
+    func uniqued() -> [Element] {
+        var seen: Set<Element> = []
+        return self.filter { seen.insert($0).inserted }
     }
 }
