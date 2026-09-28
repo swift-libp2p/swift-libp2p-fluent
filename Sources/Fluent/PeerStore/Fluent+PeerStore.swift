@@ -263,7 +263,7 @@ extension FluentPeerStore {
                 return entry
             }
             return (created, true)
-        } catch where error.isConstraintFailure {
+        } catch  where error.isConstraintFailure {
             // Another process sharing this database created the peer between our lookup and insert.
             guard let existing = try await Self.entry(for: peer, on: db) else { throw error }
             return (existing, false)
@@ -514,7 +514,11 @@ extension FluentPeerStore {
 // MARK: Protocol Book
 
 extension FluentPeerStore {
-    public func add(protocol proto: SemVerProtocol, toPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
+    public func add(
+        protocol proto: SemVerProtocol,
+        toPeer peer: PeerID,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<Void> {
         self.add(protocols: [proto], toPeer: peer, on: on)
     }
 
@@ -588,7 +592,10 @@ extension FluentPeerStore {
     }
 
     /// Returns the b58 ids of every peer that supports exactly `proto`.
-    public func getPeers(supportingProtocol proto: SemVerProtocol, on: (any EventLoop)? = nil) -> EventLoopFuture<[String]> {
+    public func getPeers(
+        supportingProtocol proto: SemVerProtocol,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<[String]> {
         self.run(on: on) { db in
             try await Self.entries(supporting: proto, on: db)
                 .compactMap { self.decoding($0) { try $0.peerID.b58String } }
@@ -596,7 +603,10 @@ extension FluentPeerStore {
     }
 
     /// Returns every peer that supports exactly `proto`.
-    public func getPeerIDs(supportingProtocol proto: SemVerProtocol, on: (any EventLoop)? = nil) -> EventLoopFuture<[PeerID]> {
+    public func getPeerIDs(
+        supportingProtocol proto: SemVerProtocol,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<[PeerID]> {
         self.run(on: on) { db in
             try await Self.entries(supporting: proto, on: db)
                 .compactMap { self.decoding($0) { try $0.peerID } }
@@ -604,7 +614,10 @@ extension FluentPeerStore {
     }
 
     /// Returns the b58 ids of every peer with a protocol that `matches` `proto`.
-    public func getPeers(matchingProtocol proto: SemVerProtocol, on: (any EventLoop)? = nil) -> EventLoopFuture<[String]> {
+    public func getPeers(
+        matchingProtocol proto: SemVerProtocol,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<[String]> {
         self.run(on: on) { db in
             try await Self.entries(matching: proto, on: db)
                 .compactMap { self.decoding($0) { try $0.peerID.b58String } }
@@ -612,14 +625,18 @@ extension FluentPeerStore {
     }
 
     /// Returns every peer with a protocol that `matches` `proto`.
-    public func getPeerIDs(matchingProtocol proto: SemVerProtocol, on: (any EventLoop)? = nil) -> EventLoopFuture<[PeerID]> {
+    public func getPeerIDs(
+        matchingProtocol proto: SemVerProtocol,
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<[PeerID]> {
         self.run(on: on) { db in
             try await Self.entries(matching: proto, on: db)
                 .compactMap { self.decoding($0) { try $0.peerID } }
         }
     }
 
-    private static func entries(supporting proto: SemVerProtocol, on db: any Database) async throws -> [PeerStoreEntry] {
+    private static func entries(supporting proto: SemVerProtocol, on db: any Database) async throws -> [PeerStoreEntry]
+    {
         try await PeerStoreEntry_Protocol.query(on: db)
             .filter(\.$protocol == proto.stringValue)
             .with(\.$peer)
@@ -779,7 +796,8 @@ extension FluentPeerStore {
         }
     }
 
-    public func remove(metaKey key: String, fromPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void> {
+    public func remove(metaKey key: String, fromPeer peer: PeerID, on: (any EventLoop)? = nil) -> EventLoopFuture<Void>
+    {
         self.run(on: on) { db in
             let entryID = try await Self.requireEntryID(for: peer, on: db)
             try await PeerStoreEntry_Metadata.query(on: db)
@@ -830,7 +848,7 @@ extension FluentPeerStore {
         }
         do {
             try await PeerStoreEntry_Metadata(peerID: entryID, key: key, value: bytes).create(on: db)
-        } catch where error.isConstraintFailure {
+        } catch  where error.isConstraintFailure {
             // Another process sharing this database inserted the key between our lookup and insert.
             guard let row = try await existingRow() else { throw error }
             row.value = Data(bytes)
@@ -847,7 +865,10 @@ extension FluentPeerStore {
     ///
     /// - Returns: The number of peers removed.
     @discardableResult
-    public func prunePeers(olderThan expiration: TimeAmount = .minutes(10), on: (any EventLoop)? = nil) -> EventLoopFuture<Int> {
+    public func prunePeers(
+        olderThan expiration: TimeAmount = .minutes(10),
+        on: (any EventLoop)? = nil
+    ) -> EventLoopFuture<Int> {
         self.run(on: on) { db in
             let cutoff = Date().addingTimeInterval(-Double(expiration.nanoseconds) / 1_000_000_000)
             let stale = try await self.pruneCandidates(on: db)
