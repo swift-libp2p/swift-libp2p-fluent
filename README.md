@@ -76,6 +76,28 @@ try await app.autoMigrate()
 > [!IMPORTANT]
 > In v0.1.0, cache now supports expiration, register `CacheEntry.migrations` and re-run your migrations to update your existing table.
 
+### PeerStore
+
+`FluentPeerStore` behaves like swift-libp2p's in-memory peerstore, but persists across restarts:
+- Operations run in the order they're called.
+- Both versions of a peer's id (`12D3Koo…` and `Qm…`) resolve to the same peer.
+- Addresses are stored in their `/p2p/<peer>` form.
+- The store is capped at a maximum number of peers.
+
+``` swift
+// Capacity limits (these are the defaults)
+app.peerstore.use(.fluent(nil, configuration: .init(maxPeers: 5_000, maxRecordsPerPeer: 3)))
+
+// Maintenance helpers that aren't part of the `PeerStore` protocol
+if let store = app.peers as? FluentPeerStore {
+    try await store.prunePeers(olderThan: .minutes(10)).get()
+    try await store.trimAllRecords().get()
+}
+```
+
+> [!IMPORTANT]
+> In v0.1.0, the peerstore has a new schema. Peers are keyed by their canonical id, and metadata and records are stored as binary data. `app.peerstore.prepareMigrations()` registers a single migration that replaces the old peerstore tables. Migrating drops all existing data.
+
 ## Drivers
 
 | Name | Description | Build (macOS & Linux) |
